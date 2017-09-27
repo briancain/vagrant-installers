@@ -1,18 +1,40 @@
+# VERSION=2.0.0 makepkg -s --force --noconfirm --skipinteg
+
 pkgname=hashicorp-vagrant
-pkgver=%VERSION%
+pkgver=$VERSION
 pkgrel=1
 pkgdesc="Build and distribute virtualized development environments"
 arch=('x86_64')
 url="https://www.vagrantup.com"
 license=('MIT')
-source=('%VAGRANTPATH%')
-conflicts=('vagrant', 'vagrant-substrate')
+conflicts=('vagrant')
 options=('!emptydirs')
+source=("https://github.com/hashicorp/vagrant/archive/v${pkgver}.tar.gz")
 md5sums=('SKIP')
+depends=('libffi>=3.2.1' 'libxml2>=2.9.4' 'libxslt>=1.1.29'
+         'libyaml' 'zlib>=1.2.11' 'xz>=5.2.3' 'readline>=6.3'
+         'openssl>=1.0.2l' 'libssh2>=1.8.0' 'libarchive' 'curl>=7.54.0' 'ruby>=2.3.4'
+         'rsync' 'chrpath')
 
+build () {
+  cd "${srcdir}/vagrant-${pkgver}"
+  gem build vagrant.gemspec
+  pwd
+  mv vagrant-*.gem vagrant.gem
+
+  export NOKOGIRI_USE_SYSTEM_LIBRARIES=1
+  export VAGRANT_HOME_DIR="${HOME}/.gem/ruby/2.4.0"
+  export PATH="${VAGRANT_HOME_DIR}/bin:$PATH"
+
+  gem install pkg-config --no-document -v "~> 1.1.7"
+  gem install vagrant.gem --no-document
+  gem install vagrant-share --force --no-document --conservative --clear-sources --source "https://gems.hashicorp.com"
+  tar -cf package.tar $VAGRANT_HOME_DIR
+}
 
 package() {
-  mv "${srcdir}/opt" "${pkgdir}/opt"
+  mkdir -p "${pkgdir}/opt/vagrant"
+  mv  "${VAGRANT_HOME_DIR}/"* "${pkgdir}/opt/vagrant"
   mkdir -p "${pkgdir}/usr/bin"
-  ln -s /opt/vagrant/bin/vagrant "${pkgdir}/usr/bin/vagrant"
+  ln -s "${VAGRANT_HOME_DIR}/bin/vagrant" "${pkgdir}/usr/bin/vagrant"
 }
